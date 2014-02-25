@@ -444,6 +444,7 @@ NSString *kSessionsKVCKey = @"sessions";
             NSLog(@"Unknown window type: %d", (int)windowType);
             // fall through
         case WINDOW_TYPE_NORMAL:
+        case WINDOW_TYPE_NORMAL_TITLELESS:
             haveScreenPreference_ = NO;
             // fall through
         case WINDOW_TYPE_LION_FULL_SCREEN:
@@ -500,6 +501,9 @@ NSString *kSessionsKVCKey = @"sessions";
         case WINDOW_TYPE_FORCE_FULL_SCREEN:
             styleMask = NSBorderlessWindowMask;
             break;
+        case WINDOW_TYPE_NORMAL_TITLELESS:
+            styleMask &= ~NSTitledWindowMask;
+            break;
 
         default:
             break;
@@ -541,7 +545,7 @@ NSString *kSessionsKVCKey = @"sessions";
         [(PTYWindow*)[self window] setLayoutDone];
     }
 
-    if (windowType == WINDOW_TYPE_NORMAL) {
+    if (windowType == WINDOW_TYPE_NORMAL || windowType == WINDOW_TYPE_NORMAL_TITLELESS) {
         _toolbarController = [[PTToolbarController alloc] initWithPseudoTerminal:self];
         if ([[self window] respondsToSelector:@selector(setBottomCornerRounded:)])
             // TODO: Why is this here?
@@ -788,7 +792,7 @@ NSString *kSessionsKVCKey = @"sessions";
 - (void)_updateDrawerVisibility:(id)sender
 {
     iTermApplicationDelegate *itad = (iTermApplicationDelegate *)[[iTermApplication sharedApplication] delegate];
-    if (windowType_ != WINDOW_TYPE_NORMAL || [self anyFullScreen]) {
+    if ((windowType_ != WINDOW_TYPE_NORMAL && windowType_ != WINDOW_TYPE_NORMAL_TITLELESS) || [self anyFullScreen]) {
         if ([itad showToolbelt]) {
             [toolbelt_ setHidden:NO];
         } else {
@@ -820,7 +824,7 @@ NSString *kSessionsKVCKey = @"sessions";
     PseudoTerminal *term;
 
     int screen;
-    if (windowType_ != WINDOW_TYPE_NORMAL) {
+    if (windowType_ != WINDOW_TYPE_NORMAL && windowType_ != WINDOW_TYPE_NORMAL_TITLELESS) {
         screen = [self _screenAtPoint:point];
     } else {
         screen = -1;
@@ -831,6 +835,10 @@ NSString *kSessionsKVCKey = @"sessions";
     switch (windowType_) {
         case WINDOW_TYPE_FULL_SCREEN:
             newWindowType = WINDOW_TYPE_FORCE_FULL_SCREEN;
+            break;
+            
+        case WINDOW_TYPE_NORMAL_TITLELESS:
+            newWindowType = WINDOW_TYPE_NORMAL_TITLELESS;
             break;
 
         case WINDOW_TYPE_TOP:
@@ -859,7 +867,7 @@ NSString *kSessionsKVCKey = @"sessions";
 
     [[iTermController sharedInstance] addInTerminals:term];
 
-    if (newWindowType == WINDOW_TYPE_NORMAL) {
+    if (newWindowType == WINDOW_TYPE_NORMAL || newWindowType == WINDOW_TYPE_NORMAL_TITLELESS) {
         [[term window] setFrameOrigin:point];
     } else if (newWindowType == WINDOW_TYPE_FORCE_FULL_SCREEN) {
         [[term window] makeKeyAndOrderFront:nil];
@@ -1463,6 +1471,7 @@ NSString *kSessionsKVCKey = @"sessions";
             break;
             
         case WINDOW_TYPE_NORMAL:
+        case WINDOW_TYPE_NORMAL_TITLELESS:
             rect.origin.x = xOrigin + xScale * [[terminalArrangement objectForKey:TERMINAL_ARRANGEMENT_X_ORIGIN] doubleValue];
             double h = [[terminalArrangement objectForKey:TERMINAL_ARRANGEMENT_HEIGHT] doubleValue];
             double y = [[terminalArrangement objectForKey:TERMINAL_ARRANGEMENT_Y_ORIGIN] doubleValue];
@@ -1725,7 +1734,7 @@ NSString *kSessionsKVCKey = @"sessions";
         [PTYTab openTabWithArrangement:tabArrangement inTerminal:self hasFlexibleView:NO];
     }
     int windowType = [PseudoTerminal _windowTypeForArrangement:arrangement];
-    if (windowType == WINDOW_TYPE_NORMAL) {
+    if (windowType == WINDOW_TYPE_NORMAL || windowType == WINDOW_TYPE_NORMAL_TITLELESS) {
         // The window may have changed size while adding tab bars, etc.
         NSRect rect;
         rect.origin.x = [[arrangement objectForKey:TERMINAL_ARRANGEMENT_X_ORIGIN] doubleValue];
@@ -2213,6 +2222,7 @@ NSString *kSessionsKVCKey = @"sessions";
             break;
 
         case WINDOW_TYPE_NORMAL:
+        case WINDOW_TYPE_NORMAL_TITLELESS:
             PtyLog(@"Window type = NORMAL");
             if (![self lionFullScreen]) {
                 PtyLog(@"Window type = NORMAL BUT it's not lion fullscreen");
@@ -3678,7 +3688,7 @@ NSString *kSessionsKVCKey = @"sessions";
 
     NSWindowController<iTermWindowController> * term =
         [self terminalDraggedFromAnotherWindowAtPoint:point];
-    if ([term windowType] == WINDOW_TYPE_NORMAL &&
+    if (([term windowType] == WINDOW_TYPE_NORMAL || [term windowType] == WINDOW_TYPE_NORMAL_TITLELESS) &&
         [[PreferencePanel sharedInstance] tabViewType] == PSMTab_TopTab) {
             [[term window] setFrameTopLeftPoint:point];
     }
@@ -5760,7 +5770,7 @@ NSString *kSessionsKVCKey = @"sessions";
     }
     PtyLog(@"safelySetSessionSize");
     BOOL hasScrollbar = [self scrollbarShouldBeVisible];
-    if (windowType_ == WINDOW_TYPE_NORMAL) {
+    if (windowType_ == WINDOW_TYPE_NORMAL || windowType_ == WINDOW_TYPE_NORMAL_TITLELESS) {
         int width = columns;
         int height = rows;
         if (width < 20) {
